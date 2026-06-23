@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meridian</title>
+<style>
+/* ═══════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════ */
+:root {
+  --bg:        #0d0f18;
+  --surface:   #161929;
+  --surface2:  #1e2236;
+  --surface3:  #262d45;
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(255,255,255,0.13);
+  --text:      #e9ebf2;
+  --muted:     rgba(233,235,242,0.42);
+  --hint:      rgba(233,235,242,0.22);
+  --accent:    #7b6cf6;
+  --accent-dim:rgba(123,108,246,0.15);
+  --teal:      #45cfa0;
+  --teal-dim:  rgba(69,207,160,0.12);
+  --red:       #ef6f6f;
+  --red-dim:   rgba(239,111,111,0.13);
+  --yellow:    #efc060;
+  --yellow-dim:rgba(239,192,96,0.13);
+  --font:      -apple-system,'SF Pro Text','Segoe UI',sans-serif;
+  --mono:      'SF Mono','Fira Code','Consolas',monospace;
+  --r-sm:      6px;
+  --r-md:      10px;
+  --r-lg:      14px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+button { cursor: pointer; font-family: var(--font); }
+textarea, input { font-family: var(--font); }
+::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ═══════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════ */
+#app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* ─── NAV ─── */
+#nav {
+  display: flex; align-items: center;
+  height: 48px; padding: 0 16px; gap: 2px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; z-index: 20;
+}
+.brand {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+  color: var(--accent); text-transform: uppercase;
+  margin-right: 14px; flex-shrink: 0; user-select: none;
+}
+.nav-btn {
+  padding: 5px 12px; border-radius: var(--r-sm);
+  font-size: 12px; color: var(--muted);
+  border: none; background: none;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+.nav-btn:hover { background: var(--surface2); color: var(--text); }
+.nav-btn.active { background: var(--surface2); color: var(--text); font-weight: 500; }
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
+.live-dot.connecting { background: var(--yellow); animation: pulse 1.2s ease-in-out infinite; }
+.live-dot.error { background: var(--red); }
+#nav-date { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+#notion-status { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+
+/* ─── CONTENT ─── */
+#content { flex: 1; overflow-y: auto; }
+.view { display: none; padding: 18px 20px; }
+.view.active { display: block; }
+
+/* ─── CONFIG OVERLAY ─── */
+#config-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  z-index: 100; display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+#config-overlay.hidden { display: none; }
+.config-modal {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--r-lg); padding: 28px 32px;
+  width: min(520px, 95vw); max-height: 90vh; overflow-y: auto;
+}
+.config-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.config-sub { font-size: 12px; color: var(--muted); margin-bottom: 24px; line-height: 1.6; }
+.config-field { margin-bottom: 16px; }
+.config-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; display: block; }
+.config-input {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--r-sm); padding: 9px 12px; color: var(--text);
+  font-size: 13px; outline: none; transition: border-color 0.15s;
+}
+.config-input:focus { border-color: var(--accent); }
+.config-section { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 20px 0 10px; }
+.config-db-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.config-note { font-size: 11px; color: var(--muted); line-height: 1.6; padding: 10px 12px; background: var(--surface2); border-radius: var(--r-sm); margin-top: 6px; }
+.config-note a { color: var(--accent); text-decoration: none; }
+.btn-primary {
+  width: 100%; padding: 10px; background: var(--accent);
+  border: none; border-radius: var(--r-sm); color: #fff;
+  font-size: 13px; font-weight: 500; margin-top: 20px;
+  transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.85; }
+.btn-secondary {
+  padding: 7px 14px; background: var(--surface2);
+  border: 1px solid var(--border2); border-radius: var(--r-sm);
+  color: var(--muted); font-size: 12px;
+  transition: color 0.15s;
+}
+.btn-secondary:hover { color: var(--text); }
+
+/* ═══════════════════════════════════════
+   SHARED COMPONENTS
+═══════════════════════════════════════ */
+.section-eyebrow {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--muted); font-weight: 600; margin-bottom: 10px;
+}
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 14px 16px;
+}
+.pill {
+  display: inline-block; font-size: 9px; font-weight: 700;
+  padding: 2px 7px; border-radius: 20px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.pill.green { background: var(--teal-dim); color: var(--teal); }
+.pill.yellow { background: var(--yellow-dim); color: var(--yellow); }
+.pill.red { background: var(--red-dim); color: var(--red); }
+.pill.purple { background: var(--accent-dim); color: var(--accent); }
+
+.bar-track { height: 3px; background: var(--surface3); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+.bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+.bar-fill.green { background: var(--teal); }
+.bar-fill.yellow { background: var(--yellow); }
+.bar-fill.red { background: var(--red); }
+
+.loading-block {
+  background: var(--surface2); border-radius: var(--r-sm);
+  height: 14px; animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer { 0%,100%{opacity:0.4} 50%{opacity:0.8} }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.spinner-inline {
+  display: inline-block; width: 11px; height: 11px;
+  border: 1.5px solid rgba(123,108,246,0.3); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.65s linear infinite;
+  vertical-align: middle; margin-right: 5px;
+}
+.empty-state {
+  padding: 48px 0; text-align: center;
+  color: var(--muted); font-size: 13px; line-height: 1.7;
+}
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: var(--r-md); padding: 10px 16px;
+  font-size: 12px; z-index: 200;
+  transform: translateY(60px); opacity: 0;
+  transition: transform 0.25s, opacity 0.25s;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-color: rgba(69,207,160,0.3); color: var(--teal); }
+.toast.error { border-color: rgba(239,111,111,0.3); color: var(--red); }
+
+/* ═══════════════════════════════════════
+   BRIEF VIEW
+═══════════════════════════════════════ */
+.brief-greeting { font-size: 20px; font-weight: 600; margin-bottom: 3px; }
+.brief-sub { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+.score-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 16px; }
+.score-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 12px 14px; }
+.score-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+.score-val { font-size: 24px; font-weight: 600; font-family: var(--mono); line-height: 1; }
+.score-val.green { color: var(--teal); } .score-val.yellow { color: var(--yellow); } .score-val.red { color: var(--red); }
+.score-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+.narrative-card {
+  background: linear-gradient(135deg, rgba(123,108,246,0.11), rgba(69,207,160,0.07));
+  border: 1px solid rgba(123,108,246,0.22);
+  border-radius: var(--r-md); padding: 14px 16px; margin-bottom: 16px;
+}
+.narrative-eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); font-weight: 600; margin-bottom: 8px; }
+.narrative-body { font-size: 13px; line-height: 1.7; }
+.narrative-body em { color: var(--teal); font-style: normal; font-weight: 500; }
+.ai-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 11px; padding: 6px 12px; border-radius: var(--r-sm);
+  background: var(--accent-dim); border: 1px solid rgba(123,108,246,0.28);
+  color: var(--accent); font-size: 11px; transition: background 0.15s;
+}
+.ai-btn:hover { background: rgba(123,108,246,0.25); }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.flag-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 9px; font-size: 12px; line-height: 1.4; }
+.flag-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.flag-dot.red { background: var(--red); } .flag-dot.yellow { background: var(--yellow); }
+.flag-goal { font-size: 10px; color: var(--muted); display: block; margin-top: 2px; font-family: var(--mono); }
+.priority-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.priority-row:last-child { border-bottom: none; }
+.p-num { font-family: var(--mono); font-size: 10px; color: var(--accent); font-weight: 600; width: 16px; flex-shrink: 0; }
+
+/* ═══════════════════════════════════════
+   METRICS VIEW
+═══════════════════════════════════════ */
+.metrics-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; }
+.metric-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 13px 14px;
+  cursor: pointer; transition: border-color 0.15s;
+}
+.metric-card:hover { border-color: var(--border2); }
+.metric-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.metric-name { font-size: 12px; font-weight: 500; }
+.metric-goal-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.metric-nums { display: flex; align-items: baseline; gap: 6px; }
+.metric-actual { font-size: 26px; font-weight: 600; font-family: var(--mono); }
+.metric-actual.green { color: var(--teal); } .metric-actual.yellow { color: var(--yellow); } .metric-actual.red { color: var(--red); }
+.metric-target { font-size: 11px; color: var(--muted); }
+
+/* ═══════════════════════════════════════
+   TEAM VIEW
+═══════════════════════════════════════ */
+.team-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 12px 14px;
+  display: flex; align-items: center; gap: 11px;
+  margin-bottom: 7px; cursor: pointer; transition: border-color 0.15s;
+}
+.team-card:hover { border-color: var(--border2); }
+.avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--accent-dim); color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; flex-shrink: 0;
+}
+.member-name { font-size: 13px; font-weight: 500; }
+.member-role { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.member-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
+.tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-family: var(--mono); }
+.tag.open { background: var(--yellow-dim); color: var(--yellow); }
+.tag.overdue { background: var(--red-dim); color: var(--red); }
+.tag.clear { background: var(--teal-dim); color: var(--teal); }
+.member-meta { margin-left: auto; font-size: 10px; color: var(--muted); text-align: right; flex-shrink: 0; }
+
+/* ═══════════════════════════════════════
+   MEETING VIEW
+═══════════════════════════════════════ */
+.meeting-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.meeting-title-input {
+  flex: 1; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 8px 12px; color: var(--text);
+  font-size: 13px; outline: none; transition: border-color 0.15s;
+}
+.meeting-title-input:focus { border-color: var(--accent); }
+.rec-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 14px; border-radius: var(--r-sm);
+  background: var(--red-dim); border: 1px solid rgba(239,111,111,0.28);
+  color: var(--red); font-size: 11px; transition: background 0.15s;
+}
+.rec-btn.live { background: rgba(239,111,111,0.28); border-color: var(--red); }
+.rec-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+.agenda-item {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 11px 13px; margin-bottom: 7px;
+}
+.agenda-top { display: flex; align-items: center; gap: 8px; }
+.agenda-check {
+  width: 17px; height: 17px; border-radius: 4px;
+  border: 1.5px solid var(--border2); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.agenda-check.done { background: var(--accent); border-color: var(--accent); }
+.agenda-lbl { font-size: 12px; font-weight: 500; flex: 1; }
+.agenda-lbl.done { text-decoration: line-through; opacity: 0.38; }
+.agenda-time-lbl { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+.agenda-metric-row {
+  margin-top: 7px; padding: 5px 9px;
+  background: var(--surface2); border-radius: var(--r-sm);
+  font-size: 11px; color: var(--muted);
+}
+.action-bar {
+  background: var(--surface2); border-radius: var(--r-sm);
+  padding: 9px 12px; margin-top: 10px;
+}
+.action-bar input {
+  background: none; border: none; color: var(--text);
+  font-size: 12px; width: 100%; outline: none;
+}
+.action-bar input::placeholder { color: var(--hint); }
+.captured-action {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 8px 12px; margin-bottom: 5px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+/* ═══════════════════════════════════════
+   LSW VIEW
+═══════════════════════════════════════ */
+.lsw-wrap { display: grid; grid-template-columns: 210px 1fr; gap: 14px; min-height: calc(100vh - 84px); }
+.lsw-sidebar { display: flex; flex-direction: column; gap: 5px; }
+.lsw-cat-btn {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 11px; border-radius: var(--r-sm);
+  background: var(--surface); border: 1px solid transparent;
+  color: var(--text); text-align: left; transition: all 0.12s;
+}
+.lsw-cat-btn:hover { border-color: var(--border2); }
+.lsw-cat-btn.active { border-color: var(--accent); background: var(--accent-dim); }
+.lsw-cat-name { font-size: 12px; font-weight: 500; }
+.lsw-cat-cadence { font-size: 9px; color: var(--muted); margin-top: 2px; }
+.lsw-cat-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.lsw-pct { font-size: 11px; font-family: var(--mono); font-weight: 600; }
+.mini-bar { width: 36px; height: 3px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
+.mini-fill { height: 100%; border-radius: 2px; background: var(--teal); transition: width 0.3s; }
+.lsw-sidebar-divider { border-top: 1px solid var(--border); margin: 6px 0; }
+
+.lsw-progress-bar {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 11px 14px; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 12px;
+}
+.lsw-prog-title { font-size: 14px; font-weight: 600; flex: 1; }
+.lsw-prog-count { font-size: 11px; color: var(--muted); font-family: var(--mono); flex-shrink: 0; }
+.lsw-prog-track { flex: 0 0 100px; height: 4px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
+.lsw-prog-fill { height: 100%; border-radius: 2px; background: var(--teal); transition: width 0.3s; }
+
+.lsw-item {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 12px 14px; margin-bottom: 8px;
+  transition: border-color 0.15s;
+}
+.lsw-item.checked { border-color: rgba(69,207,160,0.2); background: rgba(69,207,160,0.03); }
+.lsw-item-top { display: flex; align-items: flex-start; gap: 10px; }
+.lsw-check {
+  width: 18px; height: 18px; border-radius: 5px; flex-shrink: 0;
+  border: 1.5px solid var(--border2); margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.18s;
+}
+.lsw-check.done { background: var(--teal); border-color: var(--teal); }
+.lsw-body { flex: 1; }
+.lsw-title { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+.lsw-title.done { text-decoration: line-through; opacity: 0.4; }
+.lsw-desc { font-size: 11px; color: var(--muted); line-height: 1.55; }
+.lsw-meta { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.lsw-note-toggle {
+  font-size: 11px; color: var(--accent); background: none;
+  border: none; padding: 0; transition: opacity 0.15s;
+}
+.lsw-note-toggle:hover { opacity: 0.75; }
+
+.lsw-notes-panel { display: none; border-top: 1px solid var(--border); margin-top: 11px; padding-top: 11px; }
+.lsw-notes-panel.open { display: block; }
+
+.lsw-history-entries { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+.hist-entry {
+  background: var(--surface2); border-radius: var(--r-sm);
+  padding: 8px 10px; border-left: 2px solid rgba(123,108,246,0.35);
+}
+.hist-ts { font-size: 10px; color: var(--muted); font-family: var(--mono); margin-bottom: 3px; }
+.hist-text { font-size: 12px; line-height: 1.55; }
+
+.note-textarea {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 8px 10px; color: var(--text);
+  font-size: 12px; resize: none; outline: none; line-height: 1.55;
+  min-height: 64px; transition: border-color 0.15s;
+}
+.note-textarea:focus { border-color: rgba(123,108,246,0.4); }
+.note-textarea::placeholder { color: var(--hint); }
+.note-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 7px; }
+.note-hint { font-size: 10px; color: var(--hint); }
+.note-save-btn {
+  font-size: 11px; padding: 5px 12px; border-radius: var(--r-sm);
+  background: var(--accent-dim); border: 1px solid rgba(123,108,246,0.32);
+  color: var(--accent); transition: background 0.15s;
+}
+.note-save-btn:hover { background: rgba(123,108,246,0.28); }
+
+/* History full panel */
+.history-panel { display: flex; flex-direction: column; gap: 6px; }
+.hist-full-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 11px 13px;
+}
+.hist-full-top { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.hist-cat-badge { font-size: 10px; font-family: var(--mono); color: var(--accent); }
+.hist-item-name { font-size: 12px; font-weight: 500; flex: 1; }
+.hist-ts-right { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+.hist-note-text { font-size: 12px; color: var(--muted); line-height: 1.55; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     CONFIG OVERLAY
+══════════════════════════════════════════════ -->
+<div id="config-overlay">
+  <div class="config-modal">
+    <div class="config-title">Connect Meridian to Notion</div>
+    <p class="config-sub">Your data lives in Notion — this app is just the surface. Enter your credentials once and everything connects. See the setup guide for step-by-step instructions.</p>
+
+    <div class="config-section">Notion credentials</div>
+    <div class="config-field">
+      <label class="config-label">Integration token</label>
+      <input class="config-input" type="password" id="cfg-token" placeholder="secret_xxxxxxxxxxxxxxxxxxxxxxxx"/>
+    </div>
+    <div class="config-note">Create an internal integration at <a href="https://www.notion.so/my-integrations" target="_blank">notion.so/my-integrations</a>. Copy the token and paste it above.</div>
+
+    <div class="config-section">Database IDs</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6">Open each database in Notion. The database ID is the 32-character string in the URL before the <code style="background:var(--surface2);padding:1px 4px;border-radius:3px;font-size:10px">?v=</code> part.</p>
+
+    <div class="config-db-row">
+      <div class="config-field">
+        <label class="config-label">Goals DB</label>
+        <input class="config-input" id="cfg-goals" placeholder="32-char ID"/>
+      </div>
+      <div class="config-field">
+        <label class="config-label">Metrics DB</label>
+        <input class="config-input" id="cfg-metrics" placeholder="32-char ID"/>
+      </div>
+      <div class="config-field">
+        <label class="config-label">Team DB</label>
+        <input class="config-input" id="cfg-team" placeholder="32-char ID"/>
+      </div>
+      <div class="config-field">
+        <label class="config-label">Actions DB</label>
+        <input class="config-input" id="cfg-actions" placeholder="32-char ID"/>
+      </div>
+      <div class="config-field">
+        <label class="config-label">LSW Log DB</label>
+        <input class="config-input" id="cfg-lsw" placeholder="32-char ID"/>
+      </div>
+    </div>
+
+    <div class="config-section">Your name</div>
+    <div class="config-field">
+      <input class="config-input" id="cfg-name" placeholder="e.g. Norman"/>
+    </div>
+
+    <button class="btn-primary" onclick="saveConfig()">Connect and launch</button>
+    <div style="text-align:center;margin-top:12px">
+      <button class="btn-secondary" onclick="launchDemo()">Run in demo mode (no Notion required)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════════════ -->
+<div id="app">
+  <nav id="nav">
+    <span class="brand">Meridian</span>
+    <button class="nav-btn active" onclick="switchView('brief',this)">Brief</button>
+    <button class="nav-btn" onclick="switchView('metrics',this)">Metrics</button>
+    <button class="nav-btn" onclick="switchView('team',this)">Team</button>
+    <button class="nav-btn" onclick="switchView('meeting',this)">Meeting</button>
+    <button class="nav-btn" onclick="switchView('lsw',this)">LSW</button>
+    <div class="nav-right">
+      <div class="live-dot" id="conn-dot"></div>
+      <span id="notion-status">–</span>
+      <span id="nav-date"></span>
+      <button class="btn-secondary" onclick="openConfig()" style="font-size:10px;padding:4px 9px">Settings</button>
+    </div>
+  </nav>
+
+  <div id="content">
+
+    <!-- ── BRIEF ── -->
+    <div class="view active" id="view-brief">
+      <div class="brief-greeting" id="brief-greeting">Good morning.</div>
+      <div class="brief-sub" id="brief-sub">Loading your plan status...</div>
+      <div class="score-grid" id="brief-scores"></div>
+      <div class="narrative-card">
+        <div class="narrative-eyebrow">⬡ compass read — AI generated</div>
+        <div class="narrative-body" id="narrative-body">Connecting to your data...</div>
+        <button class="ai-btn" onclick="generateBrief()"><span id="regen-ico">↻</span> Regenerate</button>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="section-eyebrow" style="margin-bottom:10px">Flags</div>
+          <div id="brief-flags"></div>
+        </div>
+        <div class="card">
+          <div class="section-eyebrow" style="margin-bottom:10px">Today's priorities</div>
+          <div id="brief-priorities"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── METRICS ── -->
+    <div class="view" id="view-metrics">
+      <div class="section-eyebrow" style="margin-bottom:14px">Metrics vs. plan</div>
+      <div class="metrics-grid" id="metrics-grid"></div>
+    </div>
+
+    <!-- ── TEAM ── -->
+    <div class="view" id="view-team">
+      <div class="section-eyebrow" style="margin-bottom:14px">Leader accountability</div>
+      <div id="team-list"></div>
+    </div>
+
+    <!-- ── MEETING ── -->
+    <div class="view" id="view-meeting">
+      <div class="meeting-header">
+        <input class="meeting-title-input" id="meeting-title" type="text" value="Leadership Meeting"/>
+        <button class="rec-btn" id="rec-btn" onclick="toggleRecord()">
+          <div class="rec-dot"></div><span id="rec-lbl">Start</span>
+        </button>
+      </div>
+      <div class="section-eyebrow" style="margin-bottom:8px">Agenda</div>
+      <div id="agenda-list"></div>
+      <div class="action-bar" style="margin-top:12px">
+        <input type="text" id="action-input" placeholder="+ Capture action item — press Enter to log..." onkeydown="captureAction(event)"/>
+      </div>
+      <div id="action-log" style="margin-top:10px"></div>
+    </div>
+
+    <!-- ── LSW ── -->
+    <div class="view" id="view-lsw">
+      <div class="lsw-wrap">
+        <div class="lsw-sidebar" id="lsw-sidebar"></div>
+        <div id="lsw-panel"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   CONFIG & STATE
+══════════════════════════════════════════ */
+const STORAGE_KEY = 'meridian_config';
+const LSW_STATE_KEY = 'meridian_lsw';
+
+let CFG = {
+  token: '', name: 'Director',
+  goals: '', metrics: '', team: '', actions: '', lsw: '',
+  demo: false
+};
+
+let lswState = {};       // { itemId: { checked, notes[] } }
+let activeLswCat = 'safety';
+let showingLswHistory = false;
+let agendaItems = [];
+let capturedActions = [];
+let recording = false;
+let notionData = { goals: [], metrics: [], team: [], actions: [] };
+
+/* ── LSW category definitions (role-agnostic framework) ── */
+const LSW_CATS = [
+  { id:'safety', name:'Safety', cadence:'daily', items:[
+    { id:'s1', title:'Safety walkthrough complete', desc:'Walk all operational areas. Note hazards, near-misses, or equipment concerns.' },
+    { id:'s2', title:'Incident log reviewed', desc:'Check any overnight or pending incident submissions. Confirm zero or document response action.' },
+    { id:'s3', title:'Critical equipment verified', desc:'Confirm alarms, temperature logs, and safety interlocks are functional and within spec.' },
+  ]},
+  { id:'methods', name:'Methods', cadence:'daily', items:[
+    { id:'m1', title:'SOP compliance spot-check', desc:'Observe 2–3 key processes. Document adherence or note coaching opportunities.' },
+    { id:'m2', title:'Quality audit completed', desc:'Review output quality against standard. Note any deviations and corrective actions.' },
+    { id:'m3', title:'CI tracker reviewed', desc:'Check open improvement items. Confirm owners are progressing.' },
+  ]},
+  { id:'equipment', name:'Equipment', cadence:'weekly', items:[
+    { id:'e1', title:'PM schedule on track', desc:'Confirm preventive maintenance is current. Flag any overdue items.' },
+    { id:'e2', title:'Capital/repair requests current', desc:'Review any pending equipment requests or escalated repairs.' },
+  ]},
+  { id:'supplies', name:'Supplies', cadence:'daily', items:[
+    { id:'sup1', title:'Par levels verified', desc:'Walk key storage areas. Confirm critical supplies are at or above par.' },
+    { id:'sup2', title:'Supply chain flags logged', desc:'Document any shortages, substitutions, or vendor issues.' },
+  ]},
+  { id:'staffing', name:'Staffing', cadence:'daily', items:[
+    { id:'st1', title:'Daily coverage confirmed', desc:'Verify all shifts are covered. Approve any callouts or schedule adjustments.' },
+    { id:'st2', title:'Leader check-ins complete', desc:'Connect with each area lead. Quick pulse on team status and emerging issues.' },
+    { id:'st3', title:'Coaching observations logged', desc:'Document any development conversations or performance observations.' },
+  ]},
+  { id:'strategy', name:'Strategy', cadence:'monthly', items:[
+    { id:'str1', title:'Plan progress reviewed', desc:'Pull all metrics against plan goals. Note trend direction for each pillar.' },
+    { id:'str2', title:'Wins documented', desc:'Log significant wins this period. Attribute to team members where possible.' },
+    { id:'str3', title:'Look-ahead completed', desc:'Review upcoming initiatives, deadlines, and risks against the plan.' },
+  ]},
+];
+
+/* ══════════════════════════════════════════
+   NOTION API LAYER
+   Routes through local Python server at /api/*
+   which calls Notion server-side — no CORS issues.
+══════════════════════════════════════════ */
+
+async function notionQuery(dbId) {
+  const res = await fetch('/api/notion', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'query', token: CFG.token, dbId })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data.results || [];
+}
+
+async function notionCreate(dbId, properties) {
+  const res = await fetch('/api/notion', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'create', token: CFG.token, dbId, properties })
+  });
+  return res.json();
+}
+
+async function notionUpdate(pageId, properties) {
+  const res = await fetch('/api/notion', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'update', token: CFG.token, pageId, properties })
+  });
+  return res.json();
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+(function init() {
+  document.getElementById('nav-date').textContent =
+    new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+
+  const saved = localStorage.getItem(STORAGE_KEY);
+  const savedLsw = localStorage.getItem(LSW_STATE_KEY);
+  if (savedLsw) lswState = JSON.parse(savedLsw);
+
+  if (saved) {
+    CFG = { ...CFG, ...JSON.parse(saved) };
+    document.getElementById('config-overlay').classList.add('hidden');
+    if (CFG.demo) { loadDemoData(); }
+    else { loadAllNotionData(); }
+  }
+  setUpMeeting();
+})();
+
+/* ══════════════════════════════════════════
+   CONFIG
+══════════════════════════════════════════ */
+function saveConfig() {
+  CFG = {
+    token:   document.getElementById('cfg-token').value.trim(),
+    name:    document.getElementById('cfg-name').value.trim() || 'Director',
+    goals:   document.getElementById('cfg-goals').value.trim(),
+    metrics: document.getElementById('cfg-metrics').value.trim(),
+    team:    document.getElementById('cfg-team').value.trim(),
+    actions: document.getElementById('cfg-actions').value.trim(),
+    lsw:     document.getElementById('cfg-lsw').value.trim(),
+    demo: false
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(CFG));
+  document.getElementById('config-overlay').classList.add('hidden');
+  loadAllNotionData();
+}
+
+function launchDemo() {
+  CFG.demo = true; CFG.name = 'Norman';
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(CFG));
+  document.getElementById('config-overlay').classList.add('hidden');
+  loadDemoData();
+}
+
+function openConfig() {
+  if (CFG.token) document.getElementById('cfg-token').value = CFG.token;
+  if (CFG.name)  document.getElementById('cfg-name').value  = CFG.name;
+  ['goals','metrics','team','actions','lsw'].forEach(k => {
+    if (CFG[k]) document.getElementById('cfg-'+k).value = CFG[k];
+  });
+  document.getElementById('config-overlay').classList.remove('hidden');
+}
+
+/* ══════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════ */
+function switchView(name, btn) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  btn.classList.add('active');
+  if (name==='lsw') renderLSW();
+}
+
+/* ── Property helpers ── */
+function propText(p) {
+  if (!p) return '';
+  return p.title?.[0]?.plain_text || p.rich_text?.[0]?.plain_text || '';
+}
+function propNum(p)   { return p?.number ?? null; }
+function propSel(p)   { return p?.select?.name || ''; }
+function propDate(p)  { return p?.date?.start || ''; }
+function propCheck(p) { return p?.checkbox ?? false; }
+
+/* ── Flexible property finder — matches by keyword, case-insensitive ── */
+function findProp(props, ...keywords) {
+  const keys = Object.keys(props);
+  for (const kw of keywords) {
+    const match = keys.find(k => k.toLowerCase().includes(kw.toLowerCase()));
+    if (match) return props[match];
+  }
+  return undefined;
+}
+
+/* ── Auto-detect the title field (every DB has exactly one) ── */
+function titleProp(props) {
+  const entry = Object.values(props).find(v => v.type === 'title');
+  return entry ? propText(entry) : '';
+}
+
+/* ══════════════════════════════════════════
+   DATA LOADING
+══════════════════════════════════════════ */
+function setStatus(state, label) {
+  const dot = document.getElementById('conn-dot');
+  dot.className = 'live-dot' + (state==='connecting'?' connecting':state==='error'?' error':'');
+  document.getElementById('notion-status').textContent = label;
+}
+
+async function loadAllNotionData() {
+  setStatus('connecting', 'loading...');
+  try {
+    const [goals, metrics, team, actions] = await Promise.all([
+      notionQuery(CFG.goals),
+      notionQuery(CFG.metrics),
+      notionQuery(CFG.team),
+      notionQuery(CFG.actions)
+    ]);
+
+    notionData.goals = goals.map(p => {
+      const pr = p.properties;
+      return {
+        id:     p.id,
+        name:   titleProp(pr) || propText(findProp(pr,'goal name','goal','name')),
+        pillar: propText(findProp(pr,'pillar','domain','area','category')),
+        owner:  propText(findProp(pr,'owner')),
+        status: propSel(findProp(pr,'status')),
+      };
+    });
+
+    notionData.metrics = metrics.map(p => {
+      const pr = p.properties;
+      return {
+        id:     p.id,
+        name:   titleProp(pr) || propText(findProp(pr,'metric name','metric','name')),
+        goal:   propText(findProp(pr,'goal','linked goal','pillar')),
+        actual: propNum(findProp(pr,'current value','actual','current','value')),
+        target: propNum(findProp(pr,'target')),
+        green:  propNum(findProp(pr,'green threshold','green')),
+        yellow: propNum(findProp(pr,'yellow threshold','yellow')),
+        unit:   propText(findProp(pr,'unit')),
+        higher: propCheck(findProp(pr,'higher is better','higher','direction')),
+      };
+    });
+
+    notionData.team = team.map(p => {
+      const pr = p.properties;
+      return {
+        id:      p.id,
+        name:    titleProp(pr) || propText(findProp(pr,'name')),
+        role:    propText(findProp(pr,'role','title','position')),
+        domain:  propText(findProp(pr,'domain','area','department')),
+        checkin: propDate(findProp(pr,'last check-in','check-in','checkin','last contact')),
+      };
+    });
+
+    notionData.actions = actions.map(p => {
+      const pr = p.properties;
+      return {
+        id:     p.id,
+        title:  titleProp(pr) || propText(findProp(pr,'action','name','task','item')),
+        owner:  propText(findProp(pr,'owner','assigned','assignee')),
+        due:    propDate(findProp(pr,'due date','due','deadline')),
+        status: propSel(findProp(pr,'status')),
+        goal:   propText(findProp(pr,'goal','linked goal','objective')),
+      };
+    });
+
+    setStatus('live', 'notion live');
+    renderAll();
+    showToast('Notion data loaded', 'success');
+  } catch(err) {
+    setStatus('error', err.message || 'connection error');
+    showToast(err.message || 'Could not reach Notion — check token and database IDs', 'error');
+    console.error('Meridian connection error:', err);
+    loadDemoData();
+  }
+}
+
+/* ══════════════════════════════════════════
+   DEMO DATA
+══════════════════════════════════════════ */
+function loadDemoData() {
+  setStatus('live', 'demo mode');
+  notionData.goals = [
+    { id:'g1', name:'Patient satisfaction ≥ 90%', pillar:'Quality & Safety', status:'yellow' },
+    { id:'g2', name:'Retail revenue target',       pillar:'Financial Stewardship', status:'green' },
+    { id:'g3', name:'Zero critical safety events', pillar:'Compliance', status:'green' },
+    { id:'g4', name:'Catering labor ≤ 30%',        pillar:'Financial Stewardship', status:'red' },
+    { id:'g5', name:'Food waste reduction',         pillar:'Sustainability', status:'green' },
+    { id:'g6', name:'Leader check-in ≥ 90%',       pillar:'Leader Development', status:'yellow' },
+  ];
+  notionData.metrics = [
+    { id:'m1', name:'Patient satisfaction', goal:'Quality & Safety',      actual:88,   target:90,    unit:'',  higher:true,  green:90, yellow:85 },
+    { id:'m2', name:'Safety incidents (30d)', goal:'Compliance',          actual:0,    target:0,     unit:'',  higher:false, green:0,  yellow:2  },
+    { id:'m3', name:'Retail revenue',      goal:'Financial Stewardship',  actual:14200,target:13500, unit:'$', higher:true,  green:13500, yellow:12000 },
+    { id:'m4', name:'Catering labor %',    goal:'Financial Stewardship',  actual:34,   target:30,    unit:'%', higher:false, green:30, yellow:32 },
+    { id:'m5', name:'Food waste (lbs)',    goal:'Sustainability',          actual:42,   target:50,    unit:'',  higher:false, green:50, yellow:60 },
+    { id:'m6', name:'Leader check-in rate',goal:'Leader Development',     actual:73,   target:90,    unit:'%', higher:true,  green:90, yellow:75 },
+  ];
+  notionData.team = [
+    { id:'t1', name:'Maria C.',  role:'Patient Feeding Lead', domain:'Patient',  checkin:'2025-06-21' },
+    { id:'t2', name:'James T.',  role:'Retail Operations',    domain:'Retail',   checkin:'2025-06-23' },
+    { id:'t3', name:'Priya S.',  role:'Catering Supervisor',  domain:'Catering', checkin:'2025-06-19' },
+    { id:'t4', name:'Devon M.',  role:'Production Lead',      domain:'Kitchen',  checkin:'2025-06-22' },
+    { id:'t5', name:'Lena K.',   role:'Patient Feeding Lead', domain:'Patient',  checkin:'2025-06-20' },
+  ];
+  notionData.actions = [
+    { id:'a1', title:'Patient sat. recovery plan — team review', owner:'Maria C.',  due:'2025-06-24', status:'Open',    goal:'Quality & Safety' },
+    { id:'a2', title:'Catering labor audit — pull actuals',      owner:'Priya S.',  due:'2025-06-21', status:'Overdue', goal:'Financial Stewardship' },
+    { id:'a3', title:'Update SOP for tray assembly station 2',   owner:'Devon M.',  due:'2025-06-28', status:'Open',    goal:'Quality & Safety' },
+    { id:'a4', title:'Submit PM work order — dish machine',      owner:'James T.',  due:'2025-06-20', status:'Overdue', goal:'Compliance' },
+    { id:'a5', title:'Q3 staffing plan draft',                   owner:'Lena K.',   due:'2025-06-30', status:'Open',    goal:'Leader Development' },
+  ];
+
+  seedDemoLswNotes();
+  renderAll();
+}
+
+function seedDemoLswNotes() {
+  if (Object.keys(lswState).length > 0) return;
+  const ts1 = fmtTs(new Date(Date.now() - 86400000*3));
+  const ts2 = fmtTs(new Date(Date.now() - 86400000*2));
+  const ts3 = fmtTs(new Date(Date.now() - 86400000));
+  lswState = {
+    s1: { checked:false, notes:[{ text:'Walkthrough at 07:15. Condensation issue near dish station — maintenance ticket submitted TKT-2847. Production area clear.', ts:ts1 }]},
+    m1: { checked:false, notes:[{ text:'Observed tray assembly station 2. Two portion deviations on mechanical soft diet. Coached Maria on portion tool use. Will re-check tomorrow.', ts:ts2 }]},
+    st2:{ checked:false, notes:[{ text:'Touchpoint with all 5 leads. Priya flagged catering staffing gap Friday — escalating to scheduling. Devon reported strong team morale.', ts:ts3 }]},
+  };
+  saveLswState();
+}
+
+/* ══════════════════════════════════════════
+   RENDER ALL
+══════════════════════════════════════════ */
+function renderAll() {
+  renderBrief();
+  renderMetrics();
+  renderTeam();
+  renderLSW();
+}
+
+/* ── STATUS LOGIC ── */
+function getStatus(m) {
+  if (m.actual === null || m.actual === undefined) return 'yellow';
+  if (m.higher) {
+    if (m.actual >= m.green) return 'green';
+    if (m.actual >= m.yellow) return 'yellow';
+    return 'red';
+  } else {
+    // lower is better (incidents, labor %, waste)
+    if (m.actual <= m.green) return 'green';
+    if (m.actual <= m.yellow) return 'yellow';
+    return 'red';
+  }
+}
+
+function fmtVal(m) {
+  if (m.actual === null) return '—';
+  if (m.unit === '$') return '$' + m.actual.toLocaleString();
+  if (m.unit === '%') return m.actual + '%';
+  return String(m.actual);
+}
+
+function fmtTarget(m) {
+  if (m.unit === '$') return 'target $' + m.target.toLocaleString();
+  if (m.unit === '%') return 'target ' + m.target + '%';
+  return 'target: ' + m.target;
+}
+
+function daysSince(dateStr) {
+  if (!dateStr) return 99;
+  const d = Math.floor((Date.now() - new Date(dateStr)) / 86400000);
+  return d;
+}
+
+function checkinLabel(ds) {
+  if (ds === 0) return 'Today';
+  if (ds === 1) return 'Yesterday';
+  return ds + 'd ago';
+}
+
+/* ══════════════════════════════════════════
+   BRIEF
+══════════════════════════════════════════ */
+function renderBrief() {
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('brief-greeting').textContent = `${greet}, ${CFG.name}.`;
+  document.getElementById('brief-sub').textContent = `Here's where the operation stands against the plan.`;
+
+  const statuses = notionData.metrics.map(m => getStatus(m));
+  const green  = statuses.filter(s=>s==='green').length;
+  const yellow = statuses.filter(s=>s==='yellow').length;
+  const red    = statuses.filter(s=>s==='red').length;
+  const total  = statuses.length || 1;
+  const health = Math.round((green / total) * 100);
+  const healthCls = health >= 80 ? 'green' : health >= 60 ? 'yellow' : 'red';
+
+  document.getElementById('brief-scores').innerHTML = `
+    <div class="score-card"><div class="score-lbl">Plan health</div><div class="score-val ${healthCls}">${health}%</div><div class="score-sub">${total - green} metric${total-green!==1?'s':''} off plan</div></div>
+    <div class="score-card"><div class="score-lbl">On track</div><div class="score-val green">${green}</div><div class="score-sub">metric${green!==1?'s':''} green</div></div>
+    <div class="score-card"><div class="score-lbl">Watch</div><div class="score-val yellow">${yellow}</div><div class="score-sub">metric${yellow!==1?'s':''} yellow</div></div>
+    <div class="score-card"><div class="score-lbl">Off plan</div><div class="score-val red">${red}</div><div class="score-sub">metric${red!==1?'s':''} red</div></div>`;
+
+  /* Flags */
+  const flags = notionData.metrics.filter(m => getStatus(m) !== 'green');
+  document.getElementById('brief-flags').innerHTML = flags.length
+    ? flags.map(m => `<div class="flag-row"><div class="flag-dot ${getStatus(m)}"></div><div>${m.name}: ${fmtVal(m)} vs. ${m.target}${m.unit}<span class="flag-goal">${m.goal}</span></div></div>`).join('')
+    : '<div style="font-size:12px;color:var(--teal)">All metrics on plan.</div>';
+
+  /* Priorities — overdue actions + red metrics */
+  const overdue = notionData.actions.filter(a => a.status === 'Overdue');
+  const redMetrics = notionData.metrics.filter(m => getStatus(m) === 'red');
+  const priorities = [
+    ...redMetrics.map(m => `${m.name} recovery — pull team`),
+    ...overdue.map(a => `Resolve: ${a.title}`),
+  ].slice(0, 5);
+
+  document.getElementById('brief-priorities').innerHTML = priorities.length
+    ? priorities.map((p,i) => `<div class="priority-row"><div class="p-num">${String(i+1).padStart(2,'0')}</div>${p}</div>`).join('')
+    : '<div style="font-size:12px;color:var(--muted)">No critical priorities today.</div>';
+
+  generateBrief();
+}
+
+/* ── AI BRIEF ── */
+async function generateBrief() {
+  const el = document.getElementById('narrative-body');
+  const ico = document.getElementById('regen-ico');
+  ico.innerHTML = '<span class="spinner-inline"></span>';
+  el.style.opacity = '0.4';
+
+  const metricLines = notionData.metrics.map(m =>
+    `${m.name}: ${fmtVal(m)} (target ${m.target}${m.unit}) — ${m.goal} — ${getStatus(m).toUpperCase()}`
+  ).join('\n');
+
+  const overdueCount = notionData.actions.filter(a=>a.status==='Overdue').length;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: `You are Meridian — a leadership intelligence system for operations directors. 
+Generate a concise morning brief narrative: 2–3 sentences, direct, specific, relating every observation to a goal or pillar. 
+Surface what matters most. Use plain language. No bullets. Under 70 words.
+Wrap key numbers in <em> tags so they render highlighted.`,
+        messages: [{ role: 'user', content:
+`Generate a morning brief for ${CFG.name}, an operations director. Current data:\n${metricLines}\nOverdue actions: ${overdueCount}` }]
+      })
+    });
+    const data = await res.json();
+    el.innerHTML = data.content?.find(c=>c.type==='text')?.text || 'Unable to generate brief.';
+  } catch {
+    el.innerHTML = `Plan health is at <em>${document.querySelector('.score-val')?.textContent || '–'}</em>. Review flags below and prioritize red items before your first meeting.`;
+  }
+
+  ico.innerHTML = '↻';
+  el.style.opacity = '1';
+}
+
+/* ══════════════════════════════════════════
+   METRICS
+══════════════════════════════════════════ */
+function renderMetrics() {
+  const grid = document.getElementById('metrics-grid');
+  if (!notionData.metrics.length) {
+    grid.innerHTML = '<div class="empty-state">No metrics found. Add rows to your Metrics database in Notion.</div>';
+    return;
+  }
+  grid.innerHTML = notionData.metrics.map(m => {
+    const st = getStatus(m);
+    const pct = m.target > 0 ? Math.min(100, Math.round((m.actual / (m.higher ? m.target : m.green || m.target)) * 100)) : 0;
+    return `<div class="metric-card">
+      <div class="metric-top">
+        <div><div class="metric-name">${m.name}</div><div class="metric-goal-lbl">${m.goal}</div></div>
+        <span class="pill ${st}">${st}</span>
+      </div>
+      <div class="metric-nums">
+        <span class="metric-actual ${st}">${fmtVal(m)}</span>
+        <span class="metric-target">${fmtTarget(m)}</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill ${st}" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════
+   TEAM
+══════════════════════════════════════════ */
+function renderTeam() {
+  const list = document.getElementById('team-list');
+  if (!notionData.team.length) {
+    list.innerHTML = '<div class="empty-state">No team members found. Add rows to your Team database in Notion.</div>';
+    return;
+  }
+  list.innerHTML = notionData.team.map(m => {
+    const ds = daysSince(m.checkin);
+    const memberActions = notionData.actions.filter(a => a.owner === m.name);
+    const open = memberActions.filter(a => a.status === 'Open').length;
+    const overdue = memberActions.filter(a => a.status === 'Overdue').length;
+    const tags = [
+      overdue > 0 ? `<span class="tag overdue">${overdue} overdue</span>` : '',
+      open > 0    ? `<span class="tag open">${open} open</span>` : '',
+      open===0 && overdue===0 ? '<span class="tag clear">clear</span>' : '',
+    ].join('');
+    const ini = m.name.split(' ').map(n=>n[0]).join('').slice(0,2);
+    return `<div class="team-card">
+      <div class="avatar">${ini}</div>
+      <div class="member-info">
+        <div class="member-name">${m.name}</div>
+        <div class="member-role">${m.role}</div>
+        <div class="member-tags">${tags}</div>
+      </div>
+      <div class="member-meta">Last check-in<br>${checkinLabel(ds)}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════
+   MEETING
+══════════════════════════════════════════ */
+function setUpMeeting() {
+  agendaItems = [
+    { label:'Compass opening — plan health read', time:'5 min', metric: null, done:false },
+    { label:'Metric review — flags and watch items', time:'10 min', metric:'See Metrics tab', done:false },
+    { label:'Open action resolution', time:'8 min',  metric: null, done:false },
+    { label:'Team — overdue follow-ups', time:'5 min', metric:null, done:false },
+    { label:'Compass close — commitments', time:'5 min', metric:null, done:false },
+  ];
+  renderAgenda();
+}
+
+function renderAgenda() {
+  document.getElementById('agenda-list').innerHTML = agendaItems.map((item,i) => `
+    <div class="agenda-item">
+      <div class="agenda-top">
+        <div class="agenda-check ${item.done?'done':''}" onclick="toggleAgenda(${i})">
+          ${item.done?checkSVG():''}
+        </div>
+        <div class="agenda-lbl ${item.done?'done':''}">${item.label}</div>
+        <div class="agenda-time-lbl">${item.time}</div>
+      </div>
+      ${item.metric?`<div class="agenda-metric-row">${item.metric}</div>`:''}
+    </div>`).join('');
+}
+
+function checkSVG() { return '<svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
+function toggleAgenda(i) { agendaItems[i].done = !agendaItems[i].done; renderAgenda(); }
+function toggleRecord() {
+  recording = !recording;
+  document.getElementById('rec-btn').classList.toggle('live', recording);
+  document.getElementById('rec-lbl').textContent = recording ? 'Live' : 'Start';
+}
+
+function captureAction(e) {
+  if (e.key !== 'Enter') return;
+  const inp = document.getElementById('action-input');
+  const val = inp.value.trim(); if (!val) return;
+  const ts = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  capturedActions.push({ text: val, ts });
+  inp.value = '';
+
+  /* Write to Notion if connected */
+  if (!CFG.demo && CFG.actions) {
+    notionCreate(CFG.actions, {
+      'Name':   { title:[{ text:{ content: val } }] },
+      'Status': { select:{ name:'Open' } },
+      'Due date': { date:{ start: new Date().toISOString().split('T')[0] } }
+    }).then(() => showToast('Action saved to Notion', 'success'))
+      .catch(() => showToast('Saved locally — Notion write failed', 'error'));
+  }
+
+  const log = document.getElementById('action-log');
+  log.innerHTML = `<div class="section-eyebrow" style="margin-bottom:8px">Captured actions</div>` +
+    capturedActions.map(a => `<div class="captured-action"><span style="font-size:12px">${a.text}</span><span style="font-size:10px;color:var(--muted);font-family:var(--mono)">${a.ts}</span></div>`).join('');
+}
+
+/* ══════════════════════════════════════════
+   LSW
+══════════════════════════════════════════ */
+function getLswState(id) {
+  if (!lswState[id]) lswState[id] = { checked: false, notes: [] };
+  return lswState[id];
+}
+
+function saveLswState() {
+  localStorage.setItem(LSW_STATE_KEY, JSON.stringify(lswState));
+}
+
+function catProgress(cat) {
+  const done = cat.items.filter(i => getLswState(i.id).checked).length;
+  return { done, total: cat.items.length, pct: Math.round((done/cat.items.length)*100) };
+}
+
+function fmtTs(d = new Date()) {
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) +
+    ' · ' + d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+}
+
+function renderLSW() {
+  renderLswSidebar();
+  showingLswHistory ? renderLswHistory() : renderLswCategory();
+}
+
+function renderLswSidebar() {
+  const sb = document.getElementById('lsw-sidebar');
+  const cadenceColors = { daily:'var(--accent)', weekly:'var(--teal)', monthly:'var(--yellow)' };
+  sb.innerHTML = `<div class="section-eyebrow" style="margin-bottom:6px">Categories</div>` +
+    LSW_CATS.map(cat => {
+      const p = catProgress(cat);
+      const isActive = activeLswCat === cat.id && !showingLswHistory;
+      return `<button class="lsw-cat-btn ${isActive?'active':''}" onclick="selectLswCat('${cat.id}')">
+        <div>
+          <div class="lsw-cat-name">${cat.name}</div>
+          <div class="lsw-cat-cadence" style="color:${cadenceColors[cat.cadence]}">${cat.cadence}</div>
+        </div>
+        <div class="lsw-cat-right">
+          <div class="lsw-pct" style="color:${p.pct===100?'var(--teal)':'var(--muted)'}">${p.done}/${p.total}</div>
+          <div class="mini-bar"><div class="mini-fill" style="width:${p.pct}%;background:${p.pct===100?'var(--teal)':'var(--accent)'}"></div></div>
+        </div>
+      </button>`;
+    }).join('') +
+    `<div class="lsw-sidebar-divider"></div>
+     <button class="lsw-cat-btn ${showingLswHistory?'active':''}" onclick="selectLswHistory()">
+       <div><div class="lsw-cat-name">Documentation history</div><div class="lsw-cat-cadence" style="color:var(--muted)">all notes, all time</div></div>
+     </button>`;
+}
+
+function selectLswCat(id) { activeLswCat = id; showingLswHistory = false; renderLSW(); }
+function selectLswHistory() { showingLswHistory = true; renderLSW(); }
+
+function renderLswCategory() {
+  const cat = LSW_CATS.find(c => c.id === activeLswCat);
+  if (!cat) return;
+  const p = catProgress(cat);
+  const panel = document.getElementById('lsw-panel');
+
+  panel.innerHTML = `
+    <div class="lsw-progress-bar">
+      <div class="lsw-prog-title">${cat.name}</div>
+      <div class="lsw-prog-count">${p.done} of ${p.total}</div>
+      <div class="lsw-prog-track"><div class="lsw-prog-fill" style="width:${p.pct}%;background:${p.pct===100?'var(--teal)':'var(--accent)'}"></div></div>
+    </div>
+    ${cat.items.map(item => renderLswItem(cat, item)).join('')}`;
+}
+
+function renderLswItem(cat, item) {
+  const state = getLswState(item.id);
+  const noteCount = state.notes.length;
+
+  const historyHtml = state.notes.map(n => `
+    <div class="hist-entry">
+      <div class="hist-ts">${n.ts}</div>
+      <div class="hist-text">${n.text}</div>
+    </div>`).join('');
+
+  return `
+    <div class="lsw-item ${state.checked?'checked':''}" id="lswitem-${item.id}">
+      <div class="lsw-item-top">
+        <div class="lsw-check ${state.checked?'done':''}" onclick="toggleLswCheck('${cat.id}','${item.id}')">
+          ${state.checked?checkSVG():''}
+        </div>
+        <div class="lsw-body">
+          <div class="lsw-title ${state.checked?'done':''}">${item.title}</div>
+          <div class="lsw-desc">${item.desc}</div>
+          <div class="lsw-meta">
+            <button class="lsw-note-toggle" onclick="toggleNotePanel('${item.id}')">
+              ${noteCount > 0 ? `${noteCount} note${noteCount>1?'s':''} — add more` : '+ Add note'}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="lsw-notes-panel" id="notepanel-${item.id}">
+        ${noteCount > 0 ? `<div class="lsw-history-entries">${historyHtml}</div><div style="font-size:10px;color:var(--hint);margin-bottom:6px">Add another note</div>` : ''}
+        <textarea class="note-textarea" id="notetxt-${item.id}" placeholder="Document what you observed, decisions made, or context for the record..."></textarea>
+        <div class="note-footer">
+          <span class="note-hint">Saved to documentation history</span>
+          <button class="note-save-btn" onclick="saveLswNote('${cat.id}','${item.id}')">Save note</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function toggleLswCheck(catId, itemId) {
+  const state = getLswState(itemId);
+  state.checked = !state.checked;
+  saveLswState();
+
+  /* Write to Notion LSW Log if connected */
+  if (!CFG.demo && CFG.lsw && state.checked) {
+    const cat = LSW_CATS.find(c=>c.id===catId);
+    const item = cat?.items.find(i=>i.id===itemId);
+    notionCreate(CFG.lsw, {
+      'Name':     { title:[{ text:{ content: item?.title || itemId } }] },
+      'Category': { select:{ name: cat?.name || catId } },
+      'Date':     { date:{ start: new Date().toISOString().split('T')[0] } },
+      'Type':     { select:{ name: 'Check-in' } },
+    }).catch(() => {});
+  }
+
+  renderLSW();
+}
+
+function toggleNotePanel(itemId) {
+  const panel = document.getElementById('notepanel-'+itemId);
+  if (panel) panel.classList.toggle('open');
+}
+
+async function saveLswNote(catId, itemId) {
+  const txt = document.getElementById('notetxt-'+itemId)?.value.trim();
+  if (!txt) return;
+
+  const state = getLswState(itemId);
+  const ts = fmtTs();
+  state.notes.unshift({ text: txt, ts, catId, itemId });
+  saveLswState();
+
+  /* Write to Notion if connected */
+  if (!CFG.demo && CFG.lsw) {
+    const cat = LSW_CATS.find(c=>c.id===catId);
+    const item = cat?.items.find(i=>i.id===itemId);
+    try {
+      await notionCreate(CFG.lsw, {
+        'Name':     { title:[{ text:{ content: item?.title || itemId } }] },
+        'Category': { select:{ name: cat?.name || catId } },
+        'Note':     { rich_text:[{ text:{ content: txt } }] },
+        'Date':     { date:{ start: new Date().toISOString().split('T')[0] } },
+        'Type':     { select:{ name: 'Note' } },
+      });
+      showToast('Note saved to Notion', 'success');
+    } catch {
+      showToast('Saved locally — Notion write failed', 'error');
+    }
+  } else {
+    showToast('Note saved', 'success');
+  }
+
+  renderLSW();
+  setTimeout(() => {
+    const p = document.getElementById('notepanel-'+itemId);
+    if (p) p.classList.add('open');
+  }, 20);
+}
+
+function renderLswHistory() {
+  const panel = document.getElementById('lsw-panel');
+  const allNotes = [];
+  LSW_CATS.forEach(cat => {
+    cat.items.forEach(item => {
+      const state = getLswState(item.id);
+      state.notes.forEach(n => {
+        allNotes.push({ ...n, catName: cat.name, itemTitle: item.title });
+      });
+    });
+  });
+
+  if (!allNotes.length) {
+    panel.innerHTML = `<div class="empty-state">No documentation yet.<br><span style="font-size:11px">Save notes from any checklist item to build your history.</span></div>`;
+    return;
+  }
+
+  panel.innerHTML = `
+    <div class="section-eyebrow" style="margin-bottom:12px">${allNotes.length} documentation note${allNotes.length!==1?'s':''} — all time</div>
+    <div class="history-panel">
+      ${allNotes.map(n => `
+        <div class="hist-full-card">
+          <div class="hist-full-top">
+            <span class="hist-cat-badge">${n.catName}</span>
+            <span class="hist-item-name">${n.itemTitle}</span>
+            <span class="hist-ts-right">${n.ts}</span>
+          </div>
+          <div class="hist-note-text">${n.text}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+/* ══════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════ */
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => { t.classList.remove('show'); }, 3000);
+}
+</script>
+</body>
+</html>
